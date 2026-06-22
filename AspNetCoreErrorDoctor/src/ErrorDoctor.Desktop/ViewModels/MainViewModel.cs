@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 using ErrorDoctor.Core.Data;
 using ErrorDoctor.Core.Matching;
 using ErrorDoctor.Core.Sync;
+using ErrorDoctor.Core.Sync.Sources;
 using ErrorDoctor.Desktop.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -138,7 +140,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     private async Task AutoSyncIfDueAsync()
     {
-        if (string.IsNullOrWhiteSpace(_config.ManifestUrl))
+        if (!_config.HasAnyUpdateSource)
         {
             return;
         }
@@ -146,7 +148,7 @@ public class MainViewModel : INotifyPropertyChanged
         try
         {
             await using var db = _dbFactory.Create();
-            var service = new SyncService(db, new HttpManifestSource(HttpClient, _config.ManifestUrl));
+            var service = new SyncService(db, BuildManifestSource());
             if (await service.NeedsSyncAsync(_config.UpdateInterval))
             {
                 var result = await service.SyncAsync();
@@ -162,18 +164,18 @@ public class MainViewModel : INotifyPropertyChanged
 
     private async Task SyncAsync(bool force)
     {
-        if (string.IsNullOrWhiteSpace(_config.ManifestUrl))
+        if (!_config.HasAnyUpdateSource)
         {
-            StatusMessage = "لم يتم ضبط رابط التحديث في appsettings.json.";
+            StatusMessage = "لا توجد مصادر تحديث مفعّلة. فعّل Stack Overflow أو GitHub في appsettings.json.";
             return;
         }
 
         IsBusy = true;
-        StatusMessage = "جارٍ التحقق من التحديثات...";
+        StatusMessage = "جارٍ جلب الأخطاء والحلول من المنصات الموثوقة (Stack Overflow وGitHub)...";
         try
         {
             await using var db = _dbFactory.Create();
-            var service = new SyncService(db, new HttpManifestSource(HttpClient, _config.ManifestUrl));
+            var service = new SyncService(db, BuildManifestSource());
             var result = await service.SyncAsync(force);
             ApplySyncResult(result);
             await RefreshDatabaseInfoAsync();
@@ -186,6 +188,34 @@ public class MainViewModel : INotifyPropertyChanged
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Builds the live update source that aggregates the configured trusted platforms
+    /// (Stack Overflow, official .NET GitHub repos) plus an optional self-hosted manifest.
+    /// </summary>
+    private IManifestSource BuildManifestSource()
+    {
+        var sources = new List<IErrorSource>();
+
+        if (_config.EnableStackOverflow)
+        {
+            sources.Add(new StackOverflowSource(
+                HttpClient, _config.MaxStackOverflowQuestions, _config.StackOverflowTag, _config.StackAppsKey));
+        }
+
+        if (_config.EnableGitHub)
+        {
+            sources.Add(new GitHubIssuesSource(HttpClient, token: _config.GitHubToken));
+        }
+
+        if (!string.IsNullOrWhiteSpace(_config.ManifestUrl))
+        {
+            sources.Add(new ManifestErrorSource(
+                new HttpManifestSource(HttpClient, _config.ManifestUrl), "Custom manifest"));
+        }
+
+        return new AggregateManifestSource(sources);
     }
 
     private void ApplySyncResult(SyncResult result)

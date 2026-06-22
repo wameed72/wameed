@@ -7,18 +7,19 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using ErrorDoctor.Core.Sync;
-using ErrorDoctor.DataCollector.Sources;
+using ErrorDoctor.Core.Sync.Sources;
 
 namespace ErrorDoctor.DataCollector;
 
 /// <summary>
 /// Builds the update manifest (error-manifest.json) by merging the curated base set with
 /// data aggregated from trusted public sources. Host the output (e.g. on a GitHub raw URL)
-/// and point the desktop app's update source at it.
+/// and point the desktop app's update source at it. (The desktop app can also fetch the
+/// same sources live via AggregateManifestSource, so hosting a manifest is optional.)
 ///
 /// Usage:
 ///   dotnet run --project src/ErrorDoctor.DataCollector -- \
-///       --output dist/error-manifest.json [--stackoverflow] [--max 200] [--tag asp.net-core]
+///       --output dist/error-manifest.json [--stackoverflow] [--github] [--max 200] [--tag asp.net-core]
 /// </summary>
 public static class Program
 {
@@ -26,7 +27,7 @@ public static class Program
     {
         var options = CommandLineOptions.Parse(args);
 
-        var sources = new List<ISource> { new CuratedSource() };
+        var sources = new List<IErrorSource> { new CuratedSource() };
 
         using var http = CreateHttpClient();
         if (options.IncludeStackOverflow)
@@ -34,25 +35,37 @@ public static class Program
             sources.Add(new StackOverflowSource(http, options.MaxQuestions, options.Tag, options.StackAppsKey));
         }
 
+        if (options.IncludeGitHub)
+        {
+            sources.Add(new GitHubIssuesSource(http, token: options.GitHubToken));
+        }
+
         var merged = new Dictionary<string, ErrorEntryDto>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var source in sources)
         {
             Console.WriteLine($"Collecting from {source.Name}...");
-            var entries = await source.CollectAsync().ConfigureAwait(false);
-            int added = 0;
-            foreach (var dto in entries)
+            try
             {
-                if (string.IsNullOrWhiteSpace(dto.ExternalId))
+                var entries = await source.CollectAsync().ConfigureAwait(false);
+                int added = 0;
+                foreach (var dto in entries)
                 {
-                    continue;
+                    if (string.IsNullOrWhiteSpace(dto.ExternalId))
+                    {
+                        continue;
+                    }
+
+                    merged[dto.ExternalId] = dto; // later sources can override duplicates by id
+                    added++;
                 }
 
-                merged[dto.ExternalId] = dto; // later sources can override duplicates by id
-                added++;
+                Console.WriteLine($"  {source.Name}: {added} entries.");
             }
-
-            Console.WriteLine($"  {source.Name}: {added} entries.");
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"  {source.Name}: failed ({ex.Message}); continuing without it.");
+            }
         }
 
         var manifest = new ErrorManifest
@@ -94,9 +107,11 @@ internal sealed class CommandLineOptions
 {
     public string OutputPath { get; private set; } = "dist/error-manifest.json";
     public bool IncludeStackOverflow { get; private set; }
+    public bool IncludeGitHub { get; private set; }
     public int MaxQuestions { get; private set; } = 100;
     public string Tag { get; private set; } = "asp.net-core";
     public string? StackAppsKey { get; private set; }
+    public string? GitHubToken { get; private set; }
 
     public static CommandLineOptions Parse(string[] args)
     {
@@ -111,6 +126,9 @@ internal sealed class CommandLineOptions
                 case "--stackoverflow" or "--so":
                     options.IncludeStackOverflow = true;
                     break;
+                case "--github" or "--gh":
+                    options.IncludeGitHub = true;
+                    break;
                 case "--max" when i + 1 < args.Length && int.TryParse(args[i + 1], out var max):
                     options.MaxQuestions = max;
                     i++;
@@ -120,6 +138,9 @@ internal sealed class CommandLineOptions
                     break;
                 case "--key" when i + 1 < args.Length:
                     options.StackAppsKey = args[++i];
+                    break;
+                case "--github-token" when i + 1 < args.Length:
+                    options.GitHubToken = args[++i];
                     break;
             }
         }
