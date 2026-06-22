@@ -124,10 +124,26 @@ public class SyncService
         }
         catch (Exception ex)
         {
+            // Drop the partially-applied entry changes so the failure-status write below persists
+            // only the metadata row (otherwise SaveChanges would re-attempt the changes that just failed).
+            foreach (var tracked in _db.ChangeTracker.Entries<ErrorEntry>().ToList())
+            {
+                tracked.State = EntityState.Detached;
+            }
+
             meta.LastStatus = "Error";
             meta.LastMessage = ex.Message;
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            return new SyncResult(SyncStatus.Error, added, updated, await _db.ErrorEntries.CountAsync(cancellationToken).ConfigureAwait(false), ex.Message);
+
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Preserve the original error if even the status write fails.
+            }
+
+            return new SyncResult(SyncStatus.Error, 0, 0, await _db.ErrorEntries.CountAsync(cancellationToken).ConfigureAwait(false), ex.Message);
         }
     }
 
