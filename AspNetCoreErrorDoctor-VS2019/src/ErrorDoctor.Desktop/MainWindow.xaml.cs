@@ -23,8 +23,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         var config = AppConfig.Load();
-        var dbFactory = new DbContextFactory(config.ConnectionString);
-        _viewModel = new MainViewModel(config, dbFactory);
+        _viewModel = new MainViewModel(config);
         DataContext = _viewModel;
 
         Loaded += async (_, _) => await _viewModel.InitializeAsync();

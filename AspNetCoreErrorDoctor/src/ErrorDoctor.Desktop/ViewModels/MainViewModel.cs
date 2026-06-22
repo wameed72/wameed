@@ -16,7 +16,7 @@ namespace ErrorDoctor.Desktop.ViewModels;
 public class MainViewModel : INotifyPropertyChanged
 {
     private readonly AppConfig _config;
-    private readonly DbContextFactory _dbFactory;
+    private DbContextFactory _dbFactory;
     private readonly ErrorMatcher _matcher = new();
     private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
 
@@ -26,10 +26,10 @@ public class MainViewModel : INotifyPropertyChanged
     private bool _isBusy;
     private bool _hasSearched;
 
-    public MainViewModel(AppConfig config, DbContextFactory dbFactory)
+    public MainViewModel(AppConfig config)
     {
         _config = config;
-        _dbFactory = dbFactory;
+        _dbFactory = new DbContextFactory(config.ConnectionString);
 
         DiagnoseCommand = new AsyncRelayCommand(DiagnoseAsync, () => !IsBusy && !string.IsNullOrWhiteSpace(ErrorText));
         CheckUpdatesCommand = new AsyncRelayCommand(() => SyncAsync(force: true), () => !IsBusy);
@@ -103,13 +103,26 @@ public class MainViewModel : INotifyPropertyChanged
         IsBusy = true;
         try
         {
+            StatusMessage = "جارٍ البحث عن SQL Server وتجهيز قاعدة البيانات...";
+            var resolution = await SqlServerConnectionResolver.ResolveAsync(
+                SqlServerConnectionResolver.DefaultCandidates(_config.ConnectionString));
+            if (!resolution.Found)
+            {
+                StatusMessage =
+                    $"تعذّر الاتصال بأي SQL Server. جُرّبت: {string.Join("، ", resolution.Tried)}. " +
+                    "ثبّت SQL Server أو LocalDB، أو اضبط سلسلة الاتصال في appsettings.json.";
+                return;
+            }
+
+            _dbFactory = new DbContextFactory(resolution.ConnectionString!);
+
             await using (var db = _dbFactory.Create())
             {
                 await DatabaseInitializer.InitializeAsync(db);
             }
 
             await RefreshDatabaseInfoAsync();
-            StatusMessage = "جاهز. الصق نص الخطأ ثم اضغط (تشخيص).";
+            StatusMessage = $"جاهز (الخادم: {resolution.Server}). الصق نص الخطأ ثم اضغط (تشخيص).";
 
             await AutoSyncIfDueAsync();
         }
