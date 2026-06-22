@@ -1,0 +1,28 @@
+## .NET build output
+bin/
+obj/
+out/
+dist/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Rider / VS / VS Code
+.vs/
+.idea/
+.vscode/
+
+## Test results
+[Tt]est[Rr]esults/
+*.trx
+coverage*.json
+coverage*.xml
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Local secrets / config overrides
+appsettings.*.local.json
+*.env
