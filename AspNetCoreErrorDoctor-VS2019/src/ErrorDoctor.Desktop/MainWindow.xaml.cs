@@ -1,0 +1,39 @@
+using System.Diagnostics;
+using System.Windows;
+using System.Windows.Navigation;
+using ErrorDoctor.Desktop.Infrastructure;
+using ErrorDoctor.Desktop.ViewModels;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace ErrorDoctor.Desktop
+{
+
+public partial class MainWindow : Window
+{
+    private readonly MainViewModel _viewModel;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        var config = AppConfig.Load();
+        var dbFactory = new DbContextFactory(config.ConnectionString);
+        _viewModel = new MainViewModel(config, dbFactory);
+        DataContext = _viewModel;
+
+        Loaded += async (_, _) => await _viewModel.InitializeAsync();
+    }
+
+    private void OnRequestNavigate(object sender, RequestNavigateEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+        e.Handled = true;
+    }
+}
+}
