@@ -8,15 +8,16 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using ErrorDoctor.Core.Sync;
 
-namespace ErrorDoctor.DataCollector.Sources;
+namespace ErrorDoctor.Core.Sync.Sources
+{
 
 /// <summary>
 /// Collects highly-voted, accepted-answer Q&amp;A from Stack Overflow (Stack Exchange API)
 /// tagged asp.net-core. No API key required for modest volumes.
+/// Network failures propagate so callers can detect the offline state.
 /// </summary>
-public class StackOverflowSource : ISource
+public class StackOverflowSource : IErrorSource
 {
     private const string Site = "stackoverflow";
 
@@ -27,68 +28,62 @@ public class StackOverflowSource : ISource
 
     public StackOverflowSource(HttpClient http, int maxQuestions = 100, string tag = "asp.net-core", string? apiKey = null)
     {
-        _http = http;
+        _http = http ?? throw new ArgumentNullException(nameof(http));
         _maxQuestions = maxQuestions;
         _tag = tag;
         _apiKey = apiKey;
     }
 
-    public string Name => "StackOverflow";
+    public string Name => "Stack Overflow";
+
+    public bool RequiresNetwork => true;
 
     public async Task<IReadOnlyList<ErrorEntryDto>> CollectAsync(CancellationToken cancellationToken = default)
     {
-        try
+        var questions = await FetchQuestionsAsync(cancellationToken).ConfigureAwait(false);
+        var withAccepted = questions.Where(q => q.AcceptedAnswerId is > 0).ToList();
+        if (withAccepted.Count == 0)
         {
-            var questions = await FetchQuestionsAsync(cancellationToken).ConfigureAwait(false);
-            var withAccepted = questions.Where(q => q.AcceptedAnswerId is > 0).ToList();
-            if (withAccepted.Count == 0)
-            {
-                return Array.Empty<ErrorEntryDto>();
-            }
-
-            var bodies = await FetchAnswerBodiesAsync(
-                withAccepted.Select(q => q.AcceptedAnswerId!.Value).Distinct().ToList(),
-                cancellationToken).ConfigureAwait(false);
-
-            var results = new List<ErrorEntryDto>();
-            foreach (var q in withAccepted)
-            {
-                if (!bodies.TryGetValue(q.AcceptedAnswerId!.Value, out var body) || string.IsNullOrWhiteSpace(body))
-                {
-                    continue;
-                }
-
-                var title = WebUtility.HtmlDecode(q.Title ?? string.Empty).Trim();
-                var solution = HtmlToText(body);
-                if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(solution))
-                {
-                    continue;
-                }
-
-                var tags = q.Tags ?? new List<string>();
-                results.Add(new ErrorEntryDto
-                {
-                    ExternalId = $"so-{q.QuestionId}",
-                    ErrorCode = null,
-                    Title = Truncate(title, 480),
-                    Category = "Community (Stack Overflow)",
-                    Signature = title + " " + string.Join(' ', tags),
-                    Cause = $"Reported by the community (score {q.Score}). See the linked question for full context.",
-                    Solution = Truncate(solution, 6000),
-                    Source = "StackOverflow",
-                    SourceUrl = q.Link,
-                    Tags = string.Join(',', tags),
-                    Severity = "Error",
-                });
-            }
-
-            return results;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[StackOverflow] collection failed (continuing without it): {ex.Message}");
             return Array.Empty<ErrorEntryDto>();
         }
+
+        var bodies = await FetchAnswerBodiesAsync(
+            withAccepted.Select(q => q.AcceptedAnswerId!.Value).Distinct().ToList(),
+            cancellationToken).ConfigureAwait(false);
+
+        var results = new List<ErrorEntryDto>();
+        foreach (var q in withAccepted)
+        {
+            if (!bodies.TryGetValue(q.AcceptedAnswerId!.Value, out var body) || string.IsNullOrWhiteSpace(body))
+            {
+                continue;
+            }
+
+            var title = WebUtility.HtmlDecode(q.Title ?? string.Empty).Trim();
+            var solution = HtmlToText(body);
+            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(solution))
+            {
+                continue;
+            }
+
+            var tags = q.Tags ?? new List<string>();
+            results.Add(new ErrorEntryDto
+            {
+                ExternalId = $"so-{q.QuestionId}",
+                ErrorCode = null,
+                Title = Truncate(title, 480),
+                Category = "Community (Stack Overflow)",
+                Signature = title + " " + string.Join(' ', tags),
+                Cause = $"Reported by the community (score {q.Score}). See the linked question for full context.",
+                Solution = Truncate(solution, 6000),
+                Source = "StackOverflow",
+                SourceUrl = q.Link,
+                Tags = string.Join(',', tags),
+                Severity = "Error",
+            });
+        }
+
+        return results;
     }
 
     private async Task<List<SoQuestion>> FetchQuestionsAsync(CancellationToken cancellationToken)
@@ -216,4 +211,5 @@ public class StackOverflowSource : ISource
         [JsonPropertyName("score")] public int Score { get; set; }
         [JsonPropertyName("body")] public string? Body { get; set; }
     }
+}
 }

@@ -21,11 +21,42 @@ public class AppConfig
 
     public TimeSpan UpdateInterval { get; }
 
-    private AppConfig(string connectionString, string manifestUrl, TimeSpan updateInterval)
+    public bool EnableStackOverflow { get; }
+
+    public bool EnableGitHub { get; }
+
+    public string StackOverflowTag { get; }
+
+    public int MaxStackOverflowQuestions { get; }
+
+    public string? StackAppsKey { get; }
+
+    public string? GitHubToken { get; }
+
+    /// <summary>True when at least one update source (live platform or hosted manifest) is configured.</summary>
+    public bool HasAnyUpdateSource =>
+        EnableStackOverflow || EnableGitHub || !string.IsNullOrWhiteSpace(ManifestUrl);
+
+    private AppConfig(
+        string connectionString,
+        string manifestUrl,
+        TimeSpan updateInterval,
+        bool enableStackOverflow,
+        bool enableGitHub,
+        string stackOverflowTag,
+        int maxStackOverflowQuestions,
+        string? stackAppsKey,
+        string? gitHubToken)
     {
         ConnectionString = connectionString;
         ManifestUrl = manifestUrl;
         UpdateInterval = updateInterval;
+        EnableStackOverflow = enableStackOverflow;
+        EnableGitHub = enableGitHub;
+        StackOverflowTag = stackOverflowTag;
+        MaxStackOverflowQuestions = maxStackOverflowQuestions;
+        StackAppsKey = stackAppsKey;
+        GitHubToken = gitHubToken;
     }
 
     public static AppConfig Load()
@@ -46,7 +77,39 @@ public class AppConfig
             intervalDays = parsed;
         }
 
-        return new AppConfig(connectionString, manifestUrl, TimeSpan.FromDays(intervalDays));
+        var enableStackOverflow = ParseBool(configuration["Update:Sources:StackOverflow"], defaultValue: true);
+        var enableGitHub = ParseBool(configuration["Update:Sources:GitHub"], defaultValue: true);
+        var tag = configuration["Update:Sources:Tag"];
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            tag = "asp.net-core";
+        }
+
+        var maxQuestions = 100;
+        if (int.TryParse(configuration["Update:Sources:MaxStackOverflowQuestions"], out var parsedMax) && parsedMax > 0)
+        {
+            maxQuestions = parsedMax;
+        }
+
+        var stackAppsKey = NullIfEmpty(configuration["Update:Sources:StackAppsKey"]);
+        var gitHubToken = NullIfEmpty(configuration["Update:Sources:GitHubToken"]);
+
+        return new AppConfig(
+            connectionString,
+            manifestUrl,
+            TimeSpan.FromDays(intervalDays),
+            enableStackOverflow,
+            enableGitHub,
+            tag,
+            maxQuestions,
+            stackAppsKey,
+            gitHubToken);
     }
+
+    private static bool ParseBool(string? value, bool defaultValue) =>
+        bool.TryParse(value, out var parsed) ? parsed : defaultValue;
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
 }
 }

@@ -20,7 +20,7 @@
 | --- | --- |
 | `src/ErrorDoctor.Core` | المنطق الأساسي: نماذج البيانات، طبقة EF Core / SQL Server، محرّك مطابقة الأخطاء، خدمة التحديث، ومجموعة الأخطاء الأولية المضمّنة. |
 | `src/ErrorDoctor.Desktop` | واجهة WPF (تعمل على ويندوز). |
-| `src/ErrorDoctor.DataCollector` | أداة سطر أوامر تبني ملف التحديث (`error-manifest.json`) بدمج المجموعة الأولية مع مصادر عالمية موثوقة (Stack Overflow). |
+| `src/ErrorDoctor.DataCollector` | أداة سطر أوامر (اختيارية) تبني ملف التحديث (`error-manifest.json`) بدمج المجموعة الأولية مع المصادر الموثوقة (Stack Overflow + GitHub). |
 | `tests/ErrorDoctor.Core.Tests` | اختبارات الوحدة + اختبار تكامل مقابل SQL Server حقيقي. |
 
 البنية تفصل كل المنطق في `ErrorDoctor.Core` بحيث يكون قابلاً للاختبار بالكامل بدون واجهة رسومية.
@@ -68,42 +68,57 @@ dotnet run --project src/ErrorDoctor.Desktop
 
 ---
 
-## التحديث التلقائي (Auto-update)
+## التحديث من المنصات الموثوقة (Live update)
 
-عند توفّر الإنترنت، يتحقق التطبيق من ملف تحديث (JSON) على الرابط المضبوط في `appsettings.json`:
+عند الضغط على زر **تحديث قاعدة البيانات** (أو تلقائياً كل `IntervalDays`)، يجلب التطبيق
+الأخطاء والحلول **مباشرةً من منصات موثوقة على الإنترنت** ويدمجها في قاعدة بياناتك المحلية —
+بدون الحاجة إلى استضافة ملف تحديث:
+
+- **Stack Overflow** (Stack Exchange API): أعلى الأسئلة تصويتاً بإجابة مقبولة، وسم `asp.net-core`.
+- **GitHub**: قضايا مُغلقة عالية التفاعل من المستودعات الرسمية `dotnet/aspnetcore` و`dotnet/runtime`.
+
+الضبط في [`appsettings.json`](src/ErrorDoctor.Desktop/appsettings.json):
 
 ```json
 "Update": {
-  "ManifestUrl": "https://raw.githubusercontent.com/your-org/AspNetCoreErrorDoctor/main/dist/error-manifest.json",
-  "IntervalDays": 1
+  "ManifestUrl": "",
+  "IntervalDays": 1,
+  "Sources": {
+    "StackOverflow": true,
+    "GitHub": true,
+    "Tag": "asp.net-core",
+    "MaxStackOverflowQuestions": 100,
+    "StackAppsKey": "",
+    "GitHubToken": ""
+  }
 }
 ```
 
-- إذا لم يمرّ على آخر تحديث ناجح أكثر من `IntervalDays`، يجري تحديث تلقائي في الخلفية.
-- إذا لم يتوفّر إنترنت، يستمر التطبيق بالعمل بالبيانات المحلية.
-- يمكن للمستخدم الضغط على **تحديث قاعدة البيانات** يدوياً في أي وقت.
-
-> غيّر `ManifestUrl` ليشير إلى ملفك المنشور على GitHub (أو أي خادم موثوق).
+- يدمج التطبيق الجديد ويحدّث المتغيّر فقط (مطابقة بالـ `ExternalId` وبصمة المحتوى).
+- إذا لم يتوفّر إنترنت (تعذّر الوصول لكل المصادر)، يستمر التطبيق بالبيانات المحلية ويعرض رسالة بذلك.
+- `StackAppsKey` و`GitHubToken` اختياريان لرفع حدود معدّل الطلبات فقط؛ ليسا مطلوبين.
+- `ManifestUrl` اختياري: لو ضبطته على ملف منشور، يُدمج كمصدر إضافي إلى جانب المنصات الحيّة.
 
 ---
 
-## بناء ملف التحديث (Data collector)
+## بناء ملف تحديث منشور (Data collector — اختياري)
 
-تبني الأداة ملف `error-manifest.json` بدمج المجموعة الأولية مع Stack Overflow:
+التطبيق يجلب من المنصات مباشرةً، لكن يمكنك أيضاً بناء ملف `error-manifest.json` ثابت ونشره
+(مثلاً لشبكات بدون وصول مباشر إلى تلك المنصات):
 
 ```bash
 # المجموعة الأولية فقط (بدون إنترنت):
 dotnet run --project src/ErrorDoctor.DataCollector -- --output dist/error-manifest.json
 
-# الدمج مع Stack Overflow (أعلى الأسئلة وسماً asp.net-core مع إجابة مقبولة):
+# الدمج مع Stack Overflow وGitHub:
 dotnet run --project src/ErrorDoctor.DataCollector -- \
-    --output dist/error-manifest.json --stackoverflow --max 200
+    --output dist/error-manifest.json --stackoverflow --github --max 200
 ```
 
-انشر الملف الناتج (مثلاً ضمن مستودع GitHub) واجعل `ManifestUrl` يشير إليه. يمكن جدولة هذه
-الأداة (GitHub Actions / Task Scheduler) لتحديث القاعدة يومياً أو أسبوعياً.
+انشر الملف الناتج واجعل `ManifestUrl` يشير إليه. يمكن جدولة هذه الأداة (GitHub Actions / Task Scheduler).
 
-> المصادر قابلة للتوسعة: أضِف صنفاً يطبّق `ISource` (مثل GitHub Issues أو Microsoft Learn) وسجّله في `Program.cs`.
+> المصادر موحّدة في `ErrorDoctor.Core/Sync/Sources`. لإضافة منصّة جديدة: أضِف صنفاً يطبّق
+> `IErrorSource` (مثل Microsoft Learn) وسجّله في `AggregateManifestSource` و`DataCollector/Program.cs`.
 
 ---
 
