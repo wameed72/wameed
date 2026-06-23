@@ -70,4 +70,42 @@ public class ErrorMatcherTests
         var results = matcher.Match("ef core dbcontext sql server connection migration entity tracking", SeedEntries(), maxResults: 3);
         Assert.True(results.Count <= 3);
     }
+
+    private static ErrorEntry[] CustomEntry() => new[]
+    {
+        new ErrorEntry
+        {
+            ExternalId = "x-1",
+            Title = "Dependency injection provider could not resolve service",
+            Category = "DI",
+            Signature = "InvalidOperationException unable resolve service provider middleware",
+            Cause = "c",
+            Solution = "s",
+            Tags = "di,provider",
+        },
+    };
+
+    [Fact]
+    public void Fuzzy_matches_single_character_typo()
+    {
+        var matcher = new ErrorMatcher();
+
+        // "provder" is edit distance 1 from "provider"; exact matching would miss it.
+        var results = matcher.Match("provder middleware", CustomEntry());
+
+        Assert.NotEmpty(results);
+        Assert.Equal("x-1", results[0].Entry.ExternalId);
+    }
+
+    [Fact]
+    public void Fuzzy_matches_substring_keyword()
+    {
+        var matcher = new ErrorMatcher();
+
+        // "middlewares" contains the entry term "middleware".
+        var results = matcher.Match("middlewares pipeline", CustomEntry());
+
+        Assert.NotEmpty(results);
+        Assert.Equal("x-1", results[0].Entry.ExternalId);
+    }
 }

@@ -212,6 +212,16 @@ public class MainViewModel : INotifyPropertyChanged
             sources.Add(new GitHubIssuesSource(HttpClient, token: _config.GitHubToken));
         }
 
+        if (_config.EnableMicrosoftLearn)
+        {
+            sources.Add(new MicrosoftLearnSource(HttpClient));
+        }
+
+        if (_config.EnableGitHubDiscussions && !string.IsNullOrWhiteSpace(_config.GitHubToken))
+        {
+            sources.Add(new GitHubDiscussionsSource(HttpClient, token: _config.GitHubToken));
+        }
+
         if (!string.IsNullOrWhiteSpace(_config.ManifestUrl))
         {
             sources.Add(new ManifestErrorSource(
