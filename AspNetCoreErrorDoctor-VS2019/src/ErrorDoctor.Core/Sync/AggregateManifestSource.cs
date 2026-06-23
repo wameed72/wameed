@@ -43,7 +43,14 @@ public class AggregateManifestSource : IManifestSource
         {
             new StackOverflowSource(http, maxStackOverflow, stackOverflowTag, stackAppsKey),
             new GitHubIssuesSource(http, gitHubRepos, token: gitHubToken),
+            new MicrosoftLearnSource(http),
         };
+
+        if (!string.IsNullOrWhiteSpace(gitHubToken))
+        {
+            sources.Add(new GitHubDiscussionsSource(http, gitHubRepos, token: gitHubToken));
+        }
+
         return new AggregateManifestSource(sources);
     }
 

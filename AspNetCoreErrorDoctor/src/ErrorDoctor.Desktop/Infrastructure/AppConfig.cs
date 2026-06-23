@@ -18,6 +18,10 @@ public class AppConfig
 
     public bool EnableGitHub { get; }
 
+    public bool EnableMicrosoftLearn { get; }
+
+    public bool EnableGitHubDiscussions { get; }
+
     public string StackOverflowTag { get; }
 
     public int MaxStackOverflowQuestions { get; }
@@ -28,7 +32,8 @@ public class AppConfig
 
     /// <summary>True when at least one update source (live platform or hosted manifest) is configured.</summary>
     public bool HasAnyUpdateSource =>
-        EnableStackOverflow || EnableGitHub || !string.IsNullOrWhiteSpace(ManifestUrl);
+        EnableStackOverflow || EnableGitHub || EnableMicrosoftLearn || EnableGitHubDiscussions
+        || !string.IsNullOrWhiteSpace(ManifestUrl);
 
     private AppConfig(
         string connectionString,
@@ -36,6 +41,8 @@ public class AppConfig
         TimeSpan updateInterval,
         bool enableStackOverflow,
         bool enableGitHub,
+        bool enableMicrosoftLearn,
+        bool enableGitHubDiscussions,
         string stackOverflowTag,
         int maxStackOverflowQuestions,
         string? stackAppsKey,
@@ -46,6 +53,8 @@ public class AppConfig
         UpdateInterval = updateInterval;
         EnableStackOverflow = enableStackOverflow;
         EnableGitHub = enableGitHub;
+        EnableMicrosoftLearn = enableMicrosoftLearn;
+        EnableGitHubDiscussions = enableGitHubDiscussions;
         StackOverflowTag = stackOverflowTag;
         MaxStackOverflowQuestions = maxStackOverflowQuestions;
         StackAppsKey = stackAppsKey;
@@ -72,6 +81,8 @@ public class AppConfig
 
         var enableStackOverflow = ParseBool(configuration["Update:Sources:StackOverflow"], defaultValue: true);
         var enableGitHub = ParseBool(configuration["Update:Sources:GitHub"], defaultValue: true);
+        var enableMicrosoftLearn = ParseBool(configuration["Update:Sources:MicrosoftLearn"], defaultValue: true);
+        var enableGitHubDiscussions = ParseBool(configuration["Update:Sources:GitHubDiscussions"], defaultValue: false);
         var tag = configuration["Update:Sources:Tag"];
         if (string.IsNullOrWhiteSpace(tag))
         {
@@ -93,6 +104,8 @@ public class AppConfig
             TimeSpan.FromDays(intervalDays),
             enableStackOverflow,
             enableGitHub,
+            enableMicrosoftLearn,
+            enableGitHubDiscussions,
             tag,
             maxQuestions,
             stackAppsKey,

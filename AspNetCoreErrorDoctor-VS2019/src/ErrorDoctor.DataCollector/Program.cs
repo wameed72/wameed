@@ -42,6 +42,16 @@ public static class Program
             sources.Add(new GitHubIssuesSource(http, token: options.GitHubToken));
         }
 
+        if (options.IncludeLearn)
+        {
+            sources.Add(new MicrosoftLearnSource(http));
+        }
+
+        if (options.IncludeDiscussions)
+        {
+            sources.Add(new GitHubDiscussionsSource(http, token: options.GitHubToken));
+        }
+
         var merged = new Dictionary<string, ErrorEntryDto>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var source in sources)
@@ -110,6 +120,8 @@ internal sealed class CommandLineOptions
     public string OutputPath { get; private set; } = "dist/error-manifest.json";
     public bool IncludeStackOverflow { get; private set; }
     public bool IncludeGitHub { get; private set; }
+    public bool IncludeLearn { get; private set; }
+    public bool IncludeDiscussions { get; private set; }
     public int MaxQuestions { get; private set; } = 100;
     public string Tag { get; private set; } = "asp.net-core";
     public string? StackAppsKey { get; private set; }
@@ -130,6 +142,12 @@ internal sealed class CommandLineOptions
                     break;
                 case "--github" or "--gh":
                     options.IncludeGitHub = true;
+                    break;
+                case "--learn" or "--microsoft-learn":
+                    options.IncludeLearn = true;
+                    break;
+                case "--discussions" or "--ghd":
+                    options.IncludeDiscussions = true;
                     break;
                 case "--max" when i + 1 < args.Length && int.TryParse(args[i + 1], out var max):
                     options.MaxQuestions = max;

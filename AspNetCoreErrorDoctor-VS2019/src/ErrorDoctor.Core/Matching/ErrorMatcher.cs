@@ -19,6 +19,7 @@ public class ErrorMatcher
     private const double ErrorCodeWeight = 12.0;
     private const double ExceptionWeight = 6.0;
     private const double KeywordWeight = 1.0;
+    private const double FuzzyKeywordWeight = 0.5;
 
     public IReadOnlyList<MatchResult> Match(string rawText, IEnumerable<ErrorEntry> entries, int maxResults = 5)
     {
@@ -82,6 +83,11 @@ public class ErrorMatcher
                     score += KeywordWeight;
                     matched.Add(keyword);
                 }
+                else if (FuzzyContains(entryTerms, keyword))
+                {
+                    score += FuzzyKeywordWeight;
+                    matched.Add(keyword);
+                }
             }
 
             if (score <= 0)
@@ -105,6 +111,73 @@ public class ErrorMatcher
             .ThenByDescending(r => r.ConfidencePercent)
             .Take(maxResults)
             .ToList();
+    }
+
+    /// <summary>
+    /// Approximate match for typos / morphological variants (e.g. plural forms): a token counts as a
+    /// fuzzy hit when it is within edit distance 1 of an entry term. Kept deliberately tight so that
+    /// semantically distinct words (e.g. "related" vs "unrelated") do not match.
+    /// </summary>
+    private static bool FuzzyContains(HashSet<string> entryTerms, string keyword)
+    {
+        if (keyword.Length < 5)
+        {
+            return false;
+        }
+
+        foreach (var term in entryTerms)
+        {
+            if (term.Length < 5 || Math.Abs(term.Length - keyword.Length) > 1)
+            {
+                continue;
+            }
+
+            if (LevenshteinWithin(keyword, term, 1))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Returns true when the Levenshtein distance between a and b is at most <paramref name="maxDistance"/>.</summary>
+    private static bool LevenshteinWithin(string a, string b, int maxDistance)
+    {
+        int n = a.Length;
+        int m = b.Length;
+        if (Math.Abs(n - m) > maxDistance)
+        {
+            return false;
+        }
+
+        var previous = new int[m + 1];
+        var current = new int[m + 1];
+        for (int j = 0; j <= m; j++)
+        {
+            previous[j] = j;
+        }
+
+        for (int i = 1; i <= n; i++)
+        {
+            current[0] = i;
+            int rowMin = current[0];
+            for (int j = 1; j <= m; j++)
+            {
+                int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                current[j] = Math.Min(Math.Min(previous[j] + 1, current[j - 1] + 1), previous[j - 1] + cost);
+                rowMin = Math.Min(rowMin, current[j]);
+            }
+
+            if (rowMin > maxDistance)
+            {
+                return false;
+            }
+
+            (previous, current) = (current, previous);
+        }
+
+        return previous[m] <= maxDistance;
     }
 
     private static HashSet<string> BuildEntryTerms(ErrorEntry entry)
