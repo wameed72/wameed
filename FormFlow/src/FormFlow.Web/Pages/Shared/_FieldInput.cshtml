@@ -1,0 +1,81 @@
+@using System
+@using System.Linq
+@model FormFlow.Web.Pages.Shared.FieldInputModel
+@{
+    var field = Model.Field;
+    var name = AnswerBinder.InputName(field);
+    var value = Model.Value ?? string.Empty;
+    var selected = value
+        .Split(new[] { FieldValue.MultiValueSeparator }, StringSplitOptions.RemoveEmptyEntries)
+        .Select(v => v.Trim())
+        .ToList();
+    var invalidClass = Model.Error == null ? string.Empty : " is-invalid";
+}
+<div class="form-group">
+    <label class="font-weight-bold" for="@name">
+        @field.Label
+        @if (field.IsRequired)
+        {
+            <span class="text-danger">*</span>
+        }
+    </label>
+    @if (!string.IsNullOrWhiteSpace(field.HelpText))
+    {
+        <small class="form-text text-muted mb-1">@field.HelpText</small>
+    }
+
+    @switch (field.Type)
+    {
+        case FieldType.LongText:
+            <textarea class="form-control@(invalidClass)" id="@name" name="@name" rows="3" readonly="@Model.ReadOnly">@value</textarea>
+            break;
+        case FieldType.Number:
+            <input class="form-control@(invalidClass)" id="@name" name="@name" type="number" step="any" value="@value" readonly="@Model.ReadOnly" />
+            break;
+        case FieldType.Date:
+            <input class="form-control@(invalidClass)" id="@name" name="@name" type="date" value="@value" readonly="@Model.ReadOnly" />
+            break;
+        case FieldType.Email:
+            <input class="form-control@(invalidClass)" id="@name" name="@name" type="email" value="@value" readonly="@Model.ReadOnly" />
+            break;
+        case FieldType.Select:
+            <select class="form-control@(invalidClass)" id="@name" name="@name" disabled="@Model.ReadOnly">
+                <option value="">-- اختر --</option>
+                @foreach (var option in field.OptionList())
+                {
+                    <option value="@option" selected="@(option == value)">@option</option>
+                }
+            </select>
+            break;
+        case FieldType.Radio:
+            <div class="@invalidClass">
+                @foreach (var option in field.OptionList())
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="@name" id="@(name)_@option.GetHashCode()" value="@option" checked="@(option == value)" disabled="@Model.ReadOnly" />
+                        <label class="form-check-label" for="@(name)_@option.GetHashCode()">@option</label>
+                    </div>
+                }
+            </div>
+            break;
+        case FieldType.Checkbox:
+            <div class="@invalidClass">
+                @foreach (var option in field.OptionList())
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="@name" id="@(name)_@option.GetHashCode()" value="@option" checked="@selected.Contains(option)" disabled="@Model.ReadOnly" />
+                        <label class="form-check-label" for="@(name)_@option.GetHashCode()">@option</label>
+                    </div>
+                }
+            </div>
+            break;
+        default:
+            <input class="form-control@(invalidClass)" id="@name" name="@name" type="text" value="@value" readonly="@Model.ReadOnly" />
+            break;
+    }
+
+    @if (Model.Error != null)
+    {
+        <div class="text-danger small mt-1">@Model.Error</div>
+    }
+</div>

@@ -1,0 +1,69 @@
+@page
+@using System.Linq
+@model TrackModel
+@{
+    ViewData["Title"] = "تتبع استمارة";
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="form-inline">
+            <label class="mr-2" for="code">رمز المتابعة</label>
+            <input class="form-control mr-2" id="code" name="code" value="@Model.Code" placeholder="FRM-XXXXXX" />
+            <button class="btn btn-primary" type="submit">بحث</button>
+        </form>
+        @if (Model.CodeNotFound)
+        {
+            <div class="alert alert-danger mt-3 mb-0">لا توجد استمارة بهذا الرمز.</div>
+        }
+    </div>
+</div>
+
+@if (Model.Submission != null)
+{
+    var submission = Model.Submission;
+    var currentStage = FormWorkflowService.CurrentStage(submission);
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">
+                @submission.FormTemplate.Title
+                <span class="badge @DisplayNames.StatusBadgeClass(submission.Status) text-white">@DisplayNames.Status(submission.Status)</span>
+            </h5>
+            <dl class="row mb-0">
+                <dt class="col-sm-3">رمز المتابعة</dt>
+                <dd class="col-sm-9">@submission.TrackingCode</dd>
+                <dt class="col-sm-3">مقدم الاستمارة</dt>
+                <dd class="col-sm-9">@submission.SubmitterName</dd>
+                <dt class="col-sm-3">المرحلة الحالية</dt>
+                <dd class="col-sm-9">@(submission.Status == SubmissionStatus.Completed ? "مكتملة" : currentStage?.Title ?? "-")</dd>
+                <dt class="col-sm-3">آخر تحديث</dt>
+                <dd class="col-sm-9">@submission.UpdatedUtc.ToString("yyyy-MM-dd HH:mm")</dd>
+            </dl>
+
+            @if (submission.Status == SubmissionStatus.Returned)
+            {
+                <a class="btn btn-warning mt-3" asp-page="/Fill" asp-route-token="@submission.FormTemplate.PublicToken" asp-route-code="@submission.TrackingCode">
+                    تعديل البيانات وإعادة الإرسال
+                </a>
+            }
+        </div>
+    </div>
+
+    <h6 class="text-muted">سجل الإجراءات</h6>
+    <ul class="list-group mb-4">
+        @foreach (var evt in submission.Events)
+        {
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <span>@evt.Action</span>
+                    <span class="small text-muted">@evt.CreatedUtc.ToString("yyyy-MM-dd HH:mm")</span>
+                </div>
+                <div class="small text-muted">بواسطة: @evt.Actor</div>
+                @if (!string.IsNullOrWhiteSpace(evt.Note))
+                {
+                    <div class="small">@evt.Note</div>
+                }
+            </li>
+        }
+    </ul>
+}

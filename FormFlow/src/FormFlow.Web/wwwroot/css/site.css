@@ -1,0 +1,58 @@
+html {
+    font-size: 15px;
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin-bottom: 60px;
+    font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic", sans-serif;
+    background-color: #f7f8fa;
+}
+
+.footer {
+    background-color: #fff;
+}
+
+.card {
+    border-radius: .6rem;
+}
+
+.stage-card {
+    border-inline-start: 4px solid #0d6efd;
+}
+
+.stage-card.stage-done {
+    border-inline-start-color: #198754;
+}
+
+.stage-card.stage-waiting {
+    border-inline-start-color: #ffc107;
+}
+
+.badge-progress {
+    background-color: #0d6efd;
+}
+
+.badge-done {
+    background-color: #198754;
+}
+
+.badge-returned {
+    background-color: #fd7e14;
+}
+
+.badge-rejected {
+    background-color: #dc3545;
+}
+
+.tracking-code {
+    font-family: Consolas, monospace;
+    font-size: 1.4rem;
+    letter-spacing: .08em;
+}
+
+.public-link {
+    font-family: Consolas, monospace;
+    word-break: break-all;
+}

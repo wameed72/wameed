@@ -1,0 +1,163 @@
+@page
+@model FormFlow.Web.Pages.Admin.EditModel
+@{
+    ViewData["Title"] = "تحرير الاستمارة";
+    var template = Model.Template;
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="post" asp-page-handler="SaveTemplate" asp-route-id="@template.Id">
+            <div class="form-row">
+                <div class="col-md-4 form-group">
+                    <label>عنوان الاستمارة</label>
+                    <input class="form-control" name="Title" value="@template.Title" required />
+                </div>
+                <div class="col-md-6 form-group">
+                    <label>الوصف</label>
+                    <input class="form-control" name="Description" value="@template.Description" />
+                </div>
+                <div class="col-md-2 form-group d-flex align-items-end">
+                    <button class="btn btn-primary btn-block" type="submit">حفظ</button>
+                </div>
+            </div>
+        </form>
+        <div class="small text-muted">
+            رابط التعبئة العام: <span class="public-link">@Model.PublicLink()</span>
+        </div>
+    </div>
+</div>
+
+@foreach (var stage in template.Stages.OrderBy(s => s.Order))
+{
+    <div class="card mb-3 stage-card">
+        <div class="card-body">
+            <form method="post" asp-page-handler="UpdateStage" asp-route-id="@template.Id">
+                <input type="hidden" name="stageId" value="@stage.Id" />
+                <div class="form-row align-items-end">
+                    <div class="col-md-4 form-group">
+                        <label>المرحلة @stage.Order</label>
+                        <input class="form-control" name="title" value="@stage.Title" required />
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>الجهة المسؤولة</label>
+                        <select class="form-control" name="role">
+                            @foreach (var role in Model.Roles)
+                            {
+                                <option value="@role" selected="@(role == stage.Role)">@DisplayNames.Role(role)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>تعليمات</label>
+                        <input class="form-control" name="instructions" value="@stage.Instructions" />
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <button class="btn btn-outline-primary btn-sm" type="submit">حفظ المرحلة</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Model.HandlerUrl("MoveStage")" name="direction" value="-1" formnovalidate>▲</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Model.HandlerUrl("MoveStage")" name="direction" value="1" formnovalidate>▼</button>
+                        <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Model.HandlerUrl("DeleteStage")" formnovalidate>حذف</button>
+                    </div>
+                </div>
+            </form>
+
+            <table class="table table-sm mb-2">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>السؤال</th>
+                        <th>النوع</th>
+                        <th>إلزامي</th>
+                        <th>الخيارات</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var field in stage.Fields.OrderBy(f => f.Order))
+                    {
+                        <tr>
+                            <td>@field.Order</td>
+                            <td>@field.Label</td>
+                            <td>@DisplayNames.FieldType(field.Type)</td>
+                            <td>@(field.IsRequired ? "نعم" : "لا")</td>
+                            <td class="small text-muted">@string.Join(" / ", field.OptionList())</td>
+                            <td class="text-nowrap">
+                                <form method="post" class="d-inline" asp-page-handler="MoveField" asp-route-id="@template.Id">
+                                    <input type="hidden" name="fieldId" value="@field.Id" />
+                                    <button class="btn btn-outline-secondary btn-sm" type="submit" name="direction" value="-1">▲</button>
+                                    <button class="btn btn-outline-secondary btn-sm" type="submit" name="direction" value="1">▼</button>
+                                    <button class="btn btn-outline-danger btn-sm" type="submit" formaction="@Model.HandlerUrl("DeleteField")">حذف</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (!stage.Fields.Any())
+                    {
+                        <tr><td colspan="6" class="text-muted">لا توجد أسئلة في هذه المرحلة.</td></tr>
+                    }
+                </tbody>
+            </table>
+
+            <form method="post" asp-page-handler="AddField" asp-route-id="@template.Id">
+                <input type="hidden" name="stageId" value="@stage.Id" />
+                <div class="form-row align-items-end">
+                    <div class="col-md-3 form-group">
+                        <input class="form-control" name="label" placeholder="نص السؤال" required />
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <select class="form-control" name="type">
+                            @foreach (var type in Model.FieldTypes)
+                            {
+                                <option value="@type">@DisplayNames.FieldType(type)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <input class="form-control" name="options" placeholder="الخيارات مفصولة بفاصلة (للقوائم)" />
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <input class="form-control" name="helpText" placeholder="ملاحظة توضيحية" />
+                    </div>
+                    <div class="col-md-1 form-group">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="isRequired" value="true" id="req_@stage.Id" />
+                            <label class="form-check-label small" for="req_@stage.Id">إلزامي</label>
+                        </div>
+                    </div>
+                    <div class="col-md-1 form-group">
+                        <button class="btn btn-success btn-block btn-sm" type="submit">إضافة</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="card-title">إضافة مرحلة</h6>
+        <form method="post" asp-page-handler="AddStage" asp-route-id="@template.Id">
+            <div class="form-row align-items-end">
+                <div class="col-md-4 form-group">
+                    <input class="form-control" name="title" placeholder="عنوان المرحلة" required />
+                </div>
+                <div class="col-md-3 form-group">
+                    <select class="form-control" name="role">
+                        @foreach (var role in Model.Roles)
+                        {
+                            <option value="@role">@DisplayNames.Role(role)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 form-group">
+                    <input class="form-control" name="instructions" placeholder="تعليمات المرحلة" />
+                </div>
+                <div class="col-md-2 form-group">
+                    <button class="btn btn-primary btn-block" type="submit">إضافة</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<a class="btn btn-link" asp-page="/Admin/Index">رجوع إلى قائمة الاستمارات</a>

@@ -1,0 +1,48 @@
+@page
+@model FormFlow.Web.Pages.Admin.SubmissionModel
+@{
+    ViewData["Title"] = "تفاصيل الاستمارة";
+    var submission = Model.Submission;
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">
+            @submission.FormTemplate.Title
+            <span class="badge @DisplayNames.StatusBadgeClass(submission.Status) text-white">@DisplayNames.Status(submission.Status)</span>
+        </h5>
+        <dl class="row mb-0">
+            <dt class="col-sm-3">رمز المتابعة</dt>
+            <dd class="col-sm-9">@submission.TrackingCode</dd>
+            <dt class="col-sm-3">مقدم الاستمارة</dt>
+            <dd class="col-sm-9">@submission.SubmitterName @submission.SubmitterEmail</dd>
+            <dt class="col-sm-3">تاريخ الإنشاء</dt>
+            <dd class="col-sm-9">@submission.CreatedUtc.ToString("yyyy-MM-dd HH:mm")</dd>
+        </dl>
+    </div>
+</div>
+
+@foreach (var stage in submission.FormTemplate.Stages)
+{
+    <partial name="_StageAnswers" model="new FormFlow.Web.Pages.Shared.StageAnswersModel { Stage = stage, Values = submission.Values }" />
+}
+
+<h6 class="text-muted">سجل الإجراءات</h6>
+<ul class="list-group mb-4">
+    @foreach (var evt in submission.Events)
+    {
+        <li class="list-group-item">
+            <div class="d-flex justify-content-between">
+                <span>@evt.Action</span>
+                <span class="small text-muted">@evt.CreatedUtc.ToString("yyyy-MM-dd HH:mm")</span>
+            </div>
+            <div class="small text-muted">بواسطة: @evt.Actor</div>
+            @if (!string.IsNullOrWhiteSpace(evt.Note))
+            {
+                <div class="small">@evt.Note</div>
+            }
+        </li>
+    }
+</ul>
+
+<a class="btn btn-link" asp-page="/Admin/Submissions" asp-route-templateId="@submission.FormTemplateId">رجوع</a>

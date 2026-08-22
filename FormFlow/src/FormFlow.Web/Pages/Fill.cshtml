@@ -1,0 +1,66 @@
+@page "/f/{token}"
+@using System.Linq
+@model FillModel
+@{
+    ViewData["Title"] = Model.Template.Title;
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h4 class="card-title">@Model.Template.Title</h4>
+        @if (!string.IsNullOrWhiteSpace(Model.Template.Description))
+        {
+            <p class="text-muted mb-0">@Model.Template.Description</p>
+        }
+        <div class="small text-muted mt-2">
+            المرحلة 1 من @Model.Template.Stages.Count &mdash; @Model.Stage.Title
+        </div>
+    </div>
+</div>
+
+@if (Model.ReturnedSubmission != null)
+{
+    <div class="alert alert-warning">
+        أُعيدت هذه الاستمارة (@Model.ReturnedSubmission.TrackingCode) لتعديل بياناتها.
+        @{
+            var lastNote = Model.ReturnedSubmission.Events.LastOrDefault(e => e.Action == "إعادة إلى الموظف")?.Note;
+        }
+        @if (!string.IsNullOrWhiteSpace(lastNote))
+        {
+            <div class="mt-1"><strong>ملاحظة المشرف:</strong> @lastNote</div>
+        }
+    </div>
+}
+
+<form method="post">
+    <div class="card mb-3 stage-card">
+        <div class="card-body">
+            @if (!string.IsNullOrWhiteSpace(Model.Stage.Instructions))
+            {
+                <p class="text-muted">@Model.Stage.Instructions</p>
+            }
+
+            @if (Model.ReturnedSubmission == null)
+            {
+                <div class="form-group">
+                    <label class="font-weight-bold" for="SubmitterName">اسمك <span class="text-danger">*</span></label>
+                    <input class="form-control" id="SubmitterName" name="SubmitterName" value="@Model.SubmitterName" required />
+                </div>
+                <div class="form-group">
+                    <label class="font-weight-bold" for="SubmitterEmail">بريدك الإلكتروني</label>
+                    <input class="form-control" id="SubmitterEmail" name="SubmitterEmail" type="email" value="@Model.SubmitterEmail" />
+                </div>
+                <hr />
+            }
+
+            @foreach (var field in Model.Stage.Fields.OrderBy(f => f.Order))
+            {
+                Model.Answers.TryGetValue(field.Id, out var value);
+                Model.Errors.TryGetValue(field.Id, out var error);
+                <partial name="_FieldInput" model="new FormFlow.Web.Pages.Shared.FieldInputModel { Field = field, Value = value, Error = error }" />
+            }
+        </div>
+    </div>
+
+    <button class="btn btn-primary" type="submit">إرسال</button>
+</form>

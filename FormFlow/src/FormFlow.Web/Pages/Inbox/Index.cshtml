@@ -1,0 +1,41 @@
+@page
+@model FormFlow.Web.Pages.Inbox.IndexModel
+@{
+    ViewData["Title"] = "صندوق الوارد";
+}
+
+<h4 class="mb-3">استمارات بانتظار إجراء: @DisplayNames.Role(Model.Role)</h4>
+
+@if (Model.Pending.Count == 0)
+{
+    <div class="alert alert-info">لا توجد استمارات بانتظارك حاليًا.</div>
+}
+else
+{
+    <table class="table table-hover bg-white">
+        <thead>
+            <tr>
+                <th>رمز المتابعة</th>
+                <th>الاستمارة</th>
+                <th>مقدم الاستمارة</th>
+                <th>المرحلة</th>
+                <th>آخر تحديث</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var submission in Model.Pending)
+            {
+                var stage = FormWorkflowService.CurrentStage(submission);
+                <tr>
+                    <td>@submission.TrackingCode</td>
+                    <td>@submission.FormTemplate.Title</td>
+                    <td>@submission.SubmitterName</td>
+                    <td>@stage?.Title</td>
+                    <td>@submission.UpdatedUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td><a class="btn btn-sm btn-primary" asp-page="/Inbox/Stage" asp-route-id="@submission.Id">إكمال</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
