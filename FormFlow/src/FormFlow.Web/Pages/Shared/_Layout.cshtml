@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - استمارات FormFlow</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom mb-4">
+            <div class="container">
+                <a class="navbar-brand font-weight-bold" asp-page="/Index">استمارات FormFlow</a>
+                <ul class="navbar-nav flex-grow-1">
+                    <li class="nav-item"><a class="nav-link" asp-page="/Index">الرئيسية</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-page="/Track">تتبع استمارة</a></li>
+                    @if (User.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        <li class="nav-item"><a class="nav-link" asp-page="/Inbox/Index">صندوق الوارد</a></li>
+                        @if (UserService.IsAdministrator(User))
+                        {
+                            <li class="nav-item"><a class="nav-link" asp-page="/Admin/Index">إدارة الاستمارات</a></li>
+                        }
+                    }
+                </ul>
+                <ul class="navbar-nav">
+                    @if (User.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        <li class="nav-item"><span class="nav-link text-muted">@UserService.DisplayName(User)</span></li>
+                        <li class="nav-item">
+                            <form method="post" asp-page="/Account/Logout">
+                                <button type="submit" class="btn btn-link nav-link">خروج</button>
+                            </form>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item"><a class="nav-link" asp-page="/Account/Login">دخول الموظفين المسؤولين</a></li>
+                    }
+                </ul>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @if (TempData["StatusMessage"] != null)
+            {
+                <div class="alert alert-success">@TempData["StatusMessage"]</div>
+            }
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted mt-4">
+        <div class="container py-3">استمارات متعددة المراحل &mdash; ASP.NET Core 5</div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

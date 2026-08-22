@@ -1,0 +1,14 @@
+@page
+@model SubmittedModel
+@{
+    ViewData["Title"] = "تم الإرسال";
+}
+
+<div class="card">
+    <div class="card-body text-center">
+        <h4 class="card-title text-success">تم إرسال الاستمارة بنجاح</h4>
+        <p class="text-muted">احتفظ برمز المتابعة التالي لمعرفة حالة الاستمارة لاحقًا:</p>
+        <p class="tracking-code">@Model.Code</p>
+        <a class="btn btn-outline-primary" asp-page="/Track" asp-route-code="@Model.Code">عرض حالة الاستمارة</a>
+    </div>
+</div>

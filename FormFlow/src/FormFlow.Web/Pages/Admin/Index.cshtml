@@ -1,0 +1,73 @@
+@page
+@model FormFlow.Web.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "إدارة الاستمارات";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">الاستمارات</h4>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="card-title">استمارة جديدة</h6>
+        <form method="post" asp-page-handler="Create">
+            <div class="form-row">
+                <div class="col-md-4 form-group">
+                    <input class="form-control" name="Title" placeholder="عنوان الاستمارة" required />
+                </div>
+                <div class="col-md-6 form-group">
+                    <input class="form-control" name="Description" placeholder="وصف مختصر" />
+                </div>
+                <div class="col-md-2 form-group">
+                    <button class="btn btn-primary btn-block" type="submit">إنشاء</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Templates.Count == 0)
+{
+    <div class="alert alert-info">لا توجد استمارات بعد.</div>
+}
+else
+{
+    foreach (var template in Model.Templates)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="mb-1">
+                            @template.Title
+                            @if (template.IsPublished)
+                            {
+                                <span class="badge badge-success">منشورة</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-secondary">مسودة</span>
+                            }
+                        </h5>
+                        <div class="text-muted small">@template.Description</div>
+                        <div class="small mt-2">
+                            المراحل: @string.Join(" ← ", template.Stages.OrderBy(s => s.Order).Select(s => $"{s.Title} ({DisplayNames.Role(s.Role)})"))
+                        </div>
+                        <div class="small mt-2">
+                            رابط التعبئة العام:
+                            <span class="public-link">@Model.PublicLink(template)</span>
+                        </div>
+                    </div>
+                    <div class="text-nowrap">
+                        <a class="btn btn-sm btn-outline-primary" asp-page="/Admin/Edit" asp-route-id="@template.Id">تحرير المراحل والأسئلة</a>
+                        <a class="btn btn-sm btn-outline-secondary" asp-page="/Admin/Submissions" asp-route-templateId="@template.Id">الردود (@Model.SubmissionCount(template.Id))</a>
+                        <form method="post" asp-page-handler="TogglePublish" asp-route-id="@template.Id" class="d-inline">
+                            <button class="btn btn-sm btn-outline-dark" type="submit">@(template.IsPublished ? "إلغاء النشر" : "نشر")</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}

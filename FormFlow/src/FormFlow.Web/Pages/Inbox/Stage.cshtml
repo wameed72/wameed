@@ -1,0 +1,57 @@
+@page
+@using System.Linq
+@model FormFlow.Web.Pages.Inbox.StageModel
+@{
+    ViewData["Title"] = "إكمال مرحلة";
+    var submission = Model.Submission;
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">
+            @submission.FormTemplate.Title
+            <span class="badge @DisplayNames.StatusBadgeClass(submission.Status) text-white">@DisplayNames.Status(submission.Status)</span>
+        </h5>
+        <div class="small text-muted">
+            رمز المتابعة: @submission.TrackingCode &mdash; مقدم الاستمارة: @submission.SubmitterName
+            @if (!string.IsNullOrWhiteSpace(submission.SubmitterEmail))
+            {
+                <text>(@submission.SubmitterEmail)</text>
+            }
+        </div>
+    </div>
+</div>
+
+@foreach (var previous in submission.FormTemplate.Stages.Where(s => s.Order < Model.Stage.Order))
+{
+    <partial name="_StageAnswers" model="new FormFlow.Web.Pages.Shared.StageAnswersModel { Stage = previous, Values = submission.Values }" />
+}
+
+<form method="post" asp-page-handler="Complete" asp-route-id="@Model.Id">
+    <div class="card mb-3 stage-card stage-waiting">
+        <div class="card-body">
+            <h6 class="card-title">المرحلة @Model.Stage.Order: @Model.Stage.Title</h6>
+            @if (!string.IsNullOrWhiteSpace(Model.Stage.Instructions))
+            {
+                <p class="text-muted">@Model.Stage.Instructions</p>
+            }
+
+            @foreach (var field in Model.Stage.Fields.OrderBy(f => f.Order))
+            {
+                Model.Answers.TryGetValue(field.Id, out var value);
+                Model.Errors.TryGetValue(field.Id, out var error);
+                <partial name="_FieldInput" model="new FormFlow.Web.Pages.Shared.FieldInputModel { Field = field, Value = value, Error = error }" />
+            }
+
+            <div class="form-group">
+                <label class="font-weight-bold" for="Note">ملاحظة (تظهر في سجل الإجراءات)</label>
+                <textarea class="form-control" id="Note" name="Note" rows="2">@Model.Note</textarea>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn btn-success" type="submit">اعتماد وإرسال للمرحلة التالية</button>
+    <button class="btn btn-warning" type="submit" formaction="@Model.HandlerUrl("Return")" formnovalidate>إعادة إلى الموظف</button>
+    <button class="btn btn-outline-danger" type="submit" formaction="@Model.HandlerUrl("Reject")" formnovalidate>رفض</button>
+    <a class="btn btn-link" asp-page="/Inbox/Index">رجوع</a>
+</form>

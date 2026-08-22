@@ -1,0 +1,53 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "الرئيسية";
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h3 class="card-title">استمارات متعددة المراحل</h3>
+        <p class="card-text text-muted mb-0">
+            أنشئ استمارة بمراحل متتابعة: يملأ الموظف الجزء الخاص به عبر رابط عام، ثم تنتقل الاستمارة تلقائيًا
+            إلى صندوق وارد المشرف ليكمل جزءه ويعتمدها أو يعيدها للموظف.
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">الاستمارات المتاحة للتعبئة</h5>
+                @if (Model.PublishedTemplates.Count == 0)
+                {
+                    <p class="text-muted mb-0">لا توجد استمارات منشورة حاليًا.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var template in Model.PublishedTemplates)
+                        {
+                            <li class="list-group-item px-0">
+                                <a asp-page="/Fill" asp-route-token="@template.PublicToken">@template.Title</a>
+                                <div class="small text-muted">@template.Description</div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">تتبع حالة استمارة</h5>
+                <p class="text-muted">أدخل رمز المتابعة الذي ظهر لك بعد الإرسال.</p>
+                <form method="get" asp-page="/Track" class="form-inline">
+                    <input class="form-control mr-2" name="code" placeholder="FRM-XXXXXX" />
+                    <button class="btn btn-outline-primary" type="submit">عرض الحالة</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

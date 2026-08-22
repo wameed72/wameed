@@ -1,0 +1,18 @@
+@using System.Linq
+@model FormFlow.Web.Pages.Shared.StageAnswersModel
+<div class="card mb-3 stage-card stage-done">
+    <div class="card-body">
+        <h6 class="card-title text-muted">
+            المرحلة @Model.Stage.Order: @Model.Stage.Title
+            <span class="badge badge-secondary">@DisplayNames.Role(Model.Stage.Role)</span>
+        </h6>
+        <dl class="row mb-0">
+            @foreach (var field in Model.Stage.Fields.OrderBy(f => f.Order))
+            {
+                var value = Model.Values.FirstOrDefault(v => v.FormFieldId == field.Id)?.Value;
+                <dt class="col-sm-4">@field.Label</dt>
+                <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(value) ? "—" : value)</dd>
+            }
+        </dl>
+    </div>
+</div>
